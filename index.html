@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Clone</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1><a href="#" class="logo">YouTube Clone</a></h1>
+        <div class="nav-links" id="navLinks">
+            <div class="user-info" id="userInfo" style="display: none;">
+                <img src="" class="avatar" id="userAvatar">
+                <span id="username"></span>
+            </div>
+            <a href="#" id="uploadLink" style="display: none;">Upload</a>
+            <a href="#" id="loginLink">Login</a>
+            <a href="#" id="registerLink">Register</a>
+            <a href="#" id="logoutLink" style="display: none;">Logout</a>
+        </div>
+    </div>
+
+    <div class="content">
+        <div id="messages"></div>
+        
+        <!-- Главная страница -->
+        <div id="mainPage">
+            <div class="video-grid" id="videoGrid"></div>
+        </div>
+
+        <!-- Страница регистрации -->
+        <div id="registerPage" style="display: none;">
+            <h2>Register</h2>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label>Username: <input type="text" name="username" required></label>
+                </div>
+                <div class="form-group">
+                    <label>Password: <input type="password" name="password" required></label>
+                </div>
+                <div class="form-group">
+                    <label>Avatar: <input type="file" name="avatar" accept="image/*"></label>
+                </div>
+                <button type="submit">Register</button>
+            </form>
+        </div>
+
+        <!-- Страница входа -->
+        <div id="loginPage" style="display: none;">
+            <h2>Login</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Username: <input type="text" name="username" required></label>
+                </div>
+                <div class="form-group">
+                    <label>Password: <input type="password" name="password" required></label>
+                </div>
+                <button type="submit">Login</button>
+            </form>
+        </div>
+
+        <!-- Страница загрузки -->
+        <div id="uploadPage" style="display: none;">
+            <h2>Upload Video</h2>
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label>Video: <input type="file" name="video" accept="video/*" required></label>
+                </div>
+                <button type="submit">Upload</button>
+            </form>
+        </div>
+
+        <!-- Страница видео -->
+        <div id="videoPage" style="display: none;">
+            <a href="#" id="backToVideos">← Back to videos</a>
+            <div style="margin-top: 20px;">
+                <video controls width="100%" id="videoPlayer"></video>
+                <h2 id="videoTitle"></h2>
+                <div style="display: flex; gap: 15px; align-items: center; margin: 10px 0;">
+                    <div id="videoViews">👁️ 0 views</div>
+                    <a href="#" id="likeButton">👍 Like (0)</a>
+                </div>
+                <div id="videoAuthor" style="display: flex; align-items: center; gap: 5px; margin: 10px 0;"></div>
+                
+                <h3>Comments (<span id="commentsCount">0</span>)</h3>
+                <div id="commentsList"></div>
+                
+                <form id="commentForm" style="margin-top: 20px;">
+                    <textarea name="comment" placeholder="Add a comment..." required style="width: 100%; height: 100px;"></textarea>
+                    <button type="submit">Post Comment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
