@@ -3,98 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Clone</title>
+    <title>YouTube Clone — смотри видео</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="header">
-        <h1><a href="#" class="logo">YouTube Clone</a></h1>
-        <div class="nav-links" id="navLinks">
-            <div class="user-info" id="userInfo" style="display: none;">
-                <img src="" class="avatar" id="userAvatar">
-                <span id="username"></span>
+
+    <!-- Шапка -->
+    <header class="header">
+        <div class="logo">🎬 YouTube<span class="clone-badge">Clone</span></div>
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Поиск...">
+            <button id="searchBtn">🔍</button>
+        </div>
+        <div class="theme-toggle">
+            <button id="themeBtn">🌙 Тёмная тема</button>
+        </div>
+    </header>
+
+    <!-- Основной контент -->
+    <main class="container">
+        <!-- Список видео -->
+        <section class="video-grid" id="videoGrid">
+            <!-- Видео 1 -->
+            <div class="video-card" data-title="Как сделать клон YouTube" data-id="1">
+                <div class="thumbnail" style="background: #6c5ce7;">▶️</div>
+                <div class="video-info">
+                    <h3>Как сделать клон YouTube за час</h3>
+                    <p>Канал разработчика • 1.2 тыс. просмотров</p>
+                    <div class="video-actions">
+                        <button class="like-btn">❤️ <span class="like-count">0</span></button>
+                        <button class="views-btn">👁️ <span class="views-count">1250</span></button>
+                    </div>
+                </div>
             </div>
-            <a href="#" id="uploadLink" style="display: none;">Upload</a>
-            <a href="#" id="loginLink">Login</a>
-            <a href="#" id="registerLink">Register</a>
-            <a href="#" id="logoutLink" style="display: none;">Logout</a>
-        </div>
-    </div>
 
-    <div class="content">
-        <div id="messages"></div>
-        
-        <!-- Главная страница -->
-        <div id="mainPage">
-            <div class="video-grid" id="videoGrid"></div>
-        </div>
+            <!-- Видео 2 -->
+            <div class="video-card" data-title="JavaScript для начинающих" data-id="2">
+                <div class="thumbnail" style="background: #00b894;">🎯</div>
+                <div class="video-info">
+                    <h3>JavaScript с нуля: полный курс</h3>
+                    <p>Школа программиста • 3.4 тыс. просмотров</p>
+                    <div class="video-actions">
+                        <button class="like-btn">❤️ <span class="like-count">0</span></button>
+                        <button class="views-btn">👁️ <span class="views-count">3400</span></button>
+                    </div>
+                </div>
+            </div>
 
-        <!-- Страница регистрации -->
-        <div id="registerPage" style="display: none;">
-            <h2>Register</h2>
-            <form id="registerForm">
-                <div class="form-group">
-                    <label>Username: <input type="text" name="username" required></label>
+            <!-- Видео 3 -->
+            <div class="video-card" data-title="Дизайн в Figma" data-id="3">
+                <div class="thumbnail" style="background: #fdcb6e;">🎨</div>
+                <div class="video-info">
+                    <h3>Figma за 30 минут: основы дизайна</h3>
+                    <p>UX/UI дизайнер • 890 просмотров</p>
+                    <div class="video-actions">
+                        <button class="like-btn">❤️ <span class="like-count">0</span></button>
+                        <button class="views-btn">👁️ <span class="views-count">890</span></button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Password: <input type="password" name="password" required></label>
-                </div>
-                <div class="form-group">
-                    <label>Avatar: <input type="file" name="avatar" accept="image/*"></label>
-                </div>
-                <button type="submit">Register</button>
-            </form>
-        </div>
+            </div>
 
-        <!-- Страница входа -->
-        <div id="loginPage" style="display: none;">
-            <h2>Login</h2>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label>Username: <input type="text" name="username" required></label>
+            <!-- Видео 4 -->
+            <div class="video-card" data-title="React Hooks" data-id="4">
+                <div class="thumbnail" style="background: #e17055;">⚛️</div>
+                <div class="video-info">
+                    <h3>React Hooks: полное руководство</h3>
+                    <p>Frontend-блогер • 2.1 тыс. просмотров</p>
+                    <div class="video-actions">
+                        <button class="like-btn">❤️ <span class="like-count">0</span></button>
+                        <button class="views-btn">👁️ <span class="views-count">2100</span></button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Password: <input type="password" name="password" required></label>
-                </div>
-                <button type="submit">Login</button>
-            </form>
-        </div>
+            </div>
+        </section>
 
-        <!-- Страница загрузки -->
-        <div id="uploadPage" style="display: none;">
-            <h2>Upload Video</h2>
-            <form id="uploadForm">
-                <div class="form-group">
-                    <label>Video: <input type="file" name="video" accept="video/*" required></label>
+        <!-- Плеер (изначально скрыт) -->
+        <div class="video-player" id="videoPlayer" style="display: none;">
+            <div class="player-container">
+                <div class="player-content" id="playerContent">
+                    <h2 id="videoTitle">Название видео</h2>
+                    <div class="video-frame" id="videoFrame">
+                        🎬 Здесь будет видео (iframe)
+                    </div>
+                    <button class="close-player" id="closePlayer">✕ Закрыть</button>
                 </div>
-                <button type="submit">Upload</button>
-            </form>
-        </div>
-
-        <!-- Страница видео -->
-        <div id="videoPage" style="display: none;">
-            <a href="#" id="backToVideos">← Back to videos</a>
-            <div style="margin-top: 20px;">
-                <video controls width="100%" id="videoPlayer"></video>
-                <h2 id="videoTitle"></h2>
-                <div style="display: flex; gap: 15px; align-items: center; margin: 10px 0;">
-                    <div id="videoViews">👁️ 0 views</div>
-                    <a href="#" id="likeButton">👍 Like (0)</a>
-                </div>
-                <div id="videoAuthor" style="display: flex; align-items: center; gap: 5px; margin: 10px 0;"></div>
-                
-                <h3>Comments (<span id="commentsCount">0</span>)</h3>
-                <div id="commentsList"></div>
-                
-                <form id="commentForm" style="margin-top: 20px;">
-                    <textarea name="comment" placeholder="Add a comment..." required style="width: 100%; height: 100px;"></textarea>
-                    <button type="submit">Post Comment</button>
-                </form>
             </div>
         </div>
-    </div>
+    </main>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- Подвал -->
+    <footer class="footer">
+        <p>🎬 YouTube Clone — учебный проект. Все видео вымышлены.</p>
+    </footer>
+
     <script src="script.js"></script>
 </body>
 </html>
