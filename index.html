@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Clone — смотри видео</title>
+    <title>YouTube Clone — смотри и добавляй видео</title>
+    <meta name="description" content="Лёгкий клон YouTube на чистом HTML/CSS/JS: поиск, категории, тёмная тема, реальное воспроизведение YouTube-видео, добавление своих видео. Работает локально и на GitHub Pages без бэкенда.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,88 +14,90 @@
     <header class="header">
         <div class="logo">🎬 YouTube<span class="clone-badge">Clone</span></div>
         <div class="search-bar">
-            <input type="text" id="searchInput" placeholder="Поиск...">
+            <input type="text" id="searchInput" placeholder="Поиск видео...">
             <button id="searchBtn">🔍</button>
         </div>
-        <div class="theme-toggle">
+        <div class="header-actions">
+            <button id="addVideoBtn" class="add-btn">➕ Добавить видео</button>
             <button id="themeBtn">🌙 Тёмная тема</button>
         </div>
     </header>
 
+    <!-- Категории -->
+    <nav class="categories" id="categories">
+        <button class="category-chip active" data-category="all">Все</button>
+        <button class="category-chip" data-category="programming">Программирование</button>
+        <button class="category-chip" data-category="design">Дизайн</button>
+        <button class="category-chip" data-category="music">Музыка</button>
+        <button class="category-chip" data-category="entertainment">Развлечения</button>
+        <button class="category-chip" data-category="other">Другое</button>
+    </nav>
+
     <!-- Основной контент -->
     <main class="container">
+        <p class="empty-state" id="emptyState" style="display:none;">Ничего не найдено 🔎</p>
+
         <!-- Список видео -->
         <section class="video-grid" id="videoGrid">
-            <!-- Видео 1 -->
-            <div class="video-card" data-title="Как сделать клон YouTube" data-id="1">
-                <div class="thumbnail" style="background: #6c5ce7;">▶️</div>
-                <div class="video-info">
-                    <h3>Как сделать клон YouTube за час</h3>
-                    <p>Канал разработчика • 1.2 тыс. просмотров</p>
-                    <div class="video-actions">
-                        <button class="like-btn">❤️ <span class="like-count">0</span></button>
-                        <button class="views-btn">👁️ <span class="views-count">1250</span></button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Видео 2 -->
-            <div class="video-card" data-title="JavaScript для начинающих" data-id="2">
-                <div class="thumbnail" style="background: #00b894;">🎯</div>
-                <div class="video-info">
-                    <h3>JavaScript с нуля: полный курс</h3>
-                    <p>Школа программиста • 3.4 тыс. просмотров</p>
-                    <div class="video-actions">
-                        <button class="like-btn">❤️ <span class="like-count">0</span></button>
-                        <button class="views-btn">👁️ <span class="views-count">3400</span></button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Видео 3 -->
-            <div class="video-card" data-title="Дизайн в Figma" data-id="3">
-                <div class="thumbnail" style="background: #fdcb6e;">🎨</div>
-                <div class="video-info">
-                    <h3>Figma за 30 минут: основы дизайна</h3>
-                    <p>UX/UI дизайнер • 890 просмотров</p>
-                    <div class="video-actions">
-                        <button class="like-btn">❤️ <span class="like-count">0</span></button>
-                        <button class="views-btn">👁️ <span class="views-count">890</span></button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Видео 4 -->
-            <div class="video-card" data-title="React Hooks" data-id="4">
-                <div class="thumbnail" style="background: #e17055;">⚛️</div>
-                <div class="video-info">
-                    <h3>React Hooks: полное руководство</h3>
-                    <p>Frontend-блогер • 2.1 тыс. просмотров</p>
-                    <div class="video-actions">
-                        <button class="like-btn">❤️ <span class="like-count">0</span></button>
-                        <button class="views-btn">👁️ <span class="views-count">2100</span></button>
-                    </div>
-                </div>
-            </div>
+            <!-- Видео рендерятся через JavaScript из script.js (массив videos) -->
         </section>
+    </main>
 
-        <!-- Плеер (изначально скрыт) -->
-        <div class="video-player" id="videoPlayer" style="display: none;">
-            <div class="player-container">
-                <div class="player-content" id="playerContent">
-                    <h2 id="videoTitle">Название видео</h2>
-                    <div class="video-frame" id="videoFrame">
-                        🎬 Здесь будет видео (iframe)
-                    </div>
-                    <button class="close-player" id="closePlayer">✕ Закрыть</button>
+    <!-- Модалка плеера -->
+    <div class="video-player" id="videoPlayer" style="display: none;">
+        <div class="player-container">
+            <button class="close-player" id="closePlayer">✕</button>
+            <div class="player-content">
+                <div class="video-frame" id="videoFrame"></div>
+                <h2 id="videoTitle">Название видео</h2>
+                <p id="videoMeta" class="video-meta"></p>
+                <div class="video-actions">
+                    <button class="like-btn" id="modalLikeBtn">❤️ <span class="like-count">0</span></button>
+                    <button class="views-btn" id="modalViewsBtn">👁️ <span class="views-count">0</span></button>
                 </div>
             </div>
         </div>
-    </main>
+    </div>
+
+    <!-- Модалка добавления видео -->
+    <div class="video-player" id="addVideoModal" style="display: none;">
+        <div class="player-container">
+            <button class="close-player" id="closeAddVideo">✕</button>
+            <div class="player-content">
+                <h2>Добавить видео</h2>
+                <form id="addVideoForm" class="add-video-form">
+                    <label>
+                        Название
+                        <input type="text" id="newTitle" required maxlength="100" placeholder="Название видео">
+                    </label>
+                    <label>
+                        Ссылка на YouTube (необязательно)
+                        <input type="url" id="newUrl" placeholder="https://www.youtube.com/watch?v=...">
+                    </label>
+                    <label>
+                        Категория
+                        <select id="newCategory">
+                            <option value="programming">Программирование</option>
+                            <option value="design">Дизайн</option>
+                            <option value="music">Музыка</option>
+                            <option value="entertainment">Развлечения</option>
+                            <option value="other">Другое</option>
+                        </select>
+                    </label>
+                    <label>
+                        Автор / канал
+                        <input type="text" id="newAuthor" placeholder="Мой канал" maxlength="60">
+                    </label>
+                    <button type="submit" class="submit-btn">Опубликовать</button>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- Подвал -->
     <footer class="footer">
-        <p>🎬 YouTube Clone — учебный проект. Все видео вымышлены.</p>
+        <p>🎬 YouTube Clone — учебный проект. Все видео (кроме добавленных вами) вымышлены.</p>
+        <p><a href="https://github.com/Zenka737/youtubeclone" target="_blank" rel="noopener">Исходный код на GitHub</a></p>
     </footer>
 
     <script src="script.js"></script>
