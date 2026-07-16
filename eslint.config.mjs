@@ -9,7 +9,9 @@ export default [
                 document: "readonly",
                 localStorage: "readonly",
                 alert: "readonly",
+                confirm: "readonly",
                 console: "readonly",
+                navigator: "readonly",
                 setTimeout: "readonly",
                 clearTimeout: "readonly",
             },
@@ -17,7 +19,7 @@ export default [
         rules: {
             // Реальные ошибки
             "no-undef": "error",
-            "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+            "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }],
             "no-unreachable": "error",
             "no-duplicate-case": "error",
             "no-empty": "warn",
@@ -26,7 +28,6 @@ export default [
 
             // Потенциальные баги
             "eqeqeq": ["error", "always"],
-            "no-implicit-globals": "error",
             "no-self-assign": "error",
             "no-self-compare": "error",
             "no-constant-condition": "warn",

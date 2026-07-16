@@ -121,7 +121,7 @@ function load(key, fallback) {
     try {
         const raw = localStorage.getItem(key);
         return raw !== null ? JSON.parse(raw) : fallback;
-    } catch (e) {
+    } catch (_e) {
         return fallback;
     }
 }
