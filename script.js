@@ -1,8 +1,5 @@
 // ============================================================
-// YouTube Clone — script.js
-// Полностью на клиенте: localStorage хранит лайки, просмотры
-// и видео, добавленные пользователем. Работает и локально
-// (открыть index.html), и на GitHub Pages без сервера.
+// YouTube Clone — script.js (исправленная версия)
 // ============================================================
 
 // ===== БАЗОВЫЕ ВИДЕО =====
@@ -146,6 +143,13 @@ const emptyState = document.getElementById('emptyState');
 let activeCategory = 'all';
 let searchQuery = '';
 
+// Функция для получения актуальных данных видео (синхронизация)
+function getVideoWithStats(video) {
+    const likes = getLikes(video.id);
+    const views = getViews(video.id, video.views);
+    return { ...video, likes, views };
+}
+
 function renderVideos() {
     const filtered = videos.filter(v => {
         const matchesCategory = activeCategory === 'all' || v.category === activeCategory;
@@ -157,8 +161,7 @@ function renderVideos() {
     emptyState.style.display = filtered.length === 0 ? 'block' : 'none';
 
     filtered.forEach(video => {
-        const likes = getLikes(video.id);
-        const views = getViews(video.id, video.views);
+        const videoData = getVideoWithStats(video);
         const liked = localStorage.getItem(STORAGE_KEYS.likesPrefix + video.id + '_liked') === '1';
 
         const card = document.createElement('div');
@@ -169,10 +172,10 @@ function renderVideos() {
             <div class="thumbnail" style="background:${video.color};">${video.emoji}</div>
             <div class="video-info">
                 <h3>${escapeHtml(video.title)}</h3>
-                <p>${escapeHtml(video.author)} • ${formatViews(views)}</p>
+                <p>${escapeHtml(video.author)} • ${formatViews(videoData.views)}</p>
                 <div class="video-actions">
-                    <button class="like-btn ${liked ? 'liked' : ''}" data-id="${video.id}">❤️ <span class="like-count">${likes}</span></button>
-                    <button class="views-btn" data-id="${video.id}">👁️ <span class="views-count">${views}</span></button>
+                    <button class="like-btn ${liked ? 'liked' : ''}" data-id="${video.id}">❤️ <span class="like-count">${videoData.likes}</span></button>
+                    <button class="views-btn" data-id="${video.id}">👁️ <span class="views-count">${videoData.views}</span></button>
                 </div>
             </div>
         `;
@@ -208,6 +211,12 @@ function attachCardButtonHandlers() {
             }
             setLikes(id, likes);
             btn.querySelector('.like-count').textContent = likes;
+            
+            // Обновляем лайк в модалке, если она открыта
+            if (currentVideo && currentVideo.id === id) {
+                modalLikeBtn.querySelector('.like-count').textContent = likes;
+                modalLikeBtn.classList.toggle('liked', localStorage.getItem(likedKey) === '1');
+            }
         });
     });
 
@@ -252,7 +261,6 @@ themeBtn.addEventListener('click', () => {
     localStorage.setItem(STORAGE_KEYS.theme, isDark ? 'dark' : 'light');
 });
 
-// Восстановление темы при загрузке (в т.ч. системные предпочтения)
 (function initTheme() {
     const saved = localStorage.getItem(STORAGE_KEYS.theme);
     if (saved) {
@@ -310,7 +318,7 @@ function openPlayer(video) {
 
     videoPlayer.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    renderVideos(); // обновить счётчик просмотров в гриде
+    renderVideos(); // обновить все карточки
 }
 
 modalLikeBtn.addEventListener('click', () => {
@@ -331,13 +339,15 @@ modalLikeBtn.addEventListener('click', () => {
     }
     setLikes(id, likes);
     modalLikeBtn.querySelector('.like-count').textContent = likes;
-    renderVideos();
+    renderVideos(); // синхронизация с карточками
 });
 
 function closePlayer() {
     videoPlayer.style.display = 'none';
     document.body.style.overflow = 'auto';
-    videoFrame.innerHTML = ''; // остановить видео при закрытии
+    videoFrame.innerHTML = ''; // остановить видео
+    // Обновляем просмотры в карточках после закрытия
+    renderVideos();
     currentVideo = null;
 }
 
@@ -381,6 +391,9 @@ function closeAddVideoModal() {
     addVideoModal.style.display = 'none';
     document.body.style.overflow = 'auto';
     addVideoForm.reset();
+    // Сбрасываем ошибки валидации
+    const titleInput = document.getElementById('newTitle');
+    titleInput.style.borderColor = '';
 }
 
 addVideoForm.addEventListener('submit', (e) => {
@@ -391,7 +404,19 @@ addVideoForm.addEventListener('submit', (e) => {
     const category = document.getElementById('newCategory').value;
     const author = document.getElementById('newAuthor').value.trim() || 'Аноним';
 
-    if (!title) return;
+    // Усиленная валидация
+    if (!title) {
+        const titleInput = document.getElementById('newTitle');
+        titleInput.style.borderColor = '#ff0000';
+        titleInput.focus();
+        alert('Пожалуйста, введите название видео');
+        return;
+    }
+
+    if (title.length < 2) {
+        alert('Название должно содержать минимум 2 символа');
+        return;
+    }
 
     const youtubeId = extractYouTubeId(url);
     const newVideo = {
@@ -415,9 +440,12 @@ addVideoForm.addEventListener('submit', (e) => {
     document.querySelectorAll('.category-chip').forEach(c => c.classList.remove('active'));
     document.querySelector('.category-chip[data-category="all"]').classList.add('active');
     renderVideos();
+    
+    // Уведомление об успехе
+    console.log('✅ Видео добавлено:', newVideo.title);
 });
 
-// Закрытие модалок по Esc
+// ===== ЗАКРЫТИЕ ПО ESC =====
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         if (videoPlayer.style.display === 'flex') closePlayer();
