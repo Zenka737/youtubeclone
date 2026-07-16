@@ -1,0 +1,118 @@
+name: CI — Code Quality Check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lint-js:
+    name: JavaScript — ESLint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install ESLint
+        run: npm install --no-save eslint@9
+
+      - name: Run ESLint
+        run: npx eslint script.js
+
+  lint-html:
+    name: HTML — HTMLHint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install HTMLHint
+        run: npm install --no-save htmlhint
+
+      - name: Run HTMLHint
+        run: npx htmlhint index.html --config .htmlhintrc
+
+  syntax-check:
+    name: JavaScript — Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check JS syntax
+        run: node --check script.js && echo "✅ Синтаксис JS корректен"
+
+  debug-artifacts:
+    name: Debug Artifacts Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for leftover debug code
+        run: |
+          echo "Проверяем на debug-артефакты..."
+          FOUND=0
+
+          if grep -n "debugger" script.js; then
+            echo "❌ Найден оператор debugger"
+            FOUND=1
+          fi
+
+          if grep -nP "console\.(warn|error|debug|trace|dir)" script.js; then
+            echo "❌ Найдены отладочные console методы"
+            FOUND=1
+          fi
+
+          if grep -n "TODO\|FIXME\|HACK\|XXX" script.js; then
+            echo "⚠️  Найдены TODO/FIXME комментарии (предупреждение)"
+          fi
+
+          if [ $FOUND -eq 1 ]; then
+            exit 1
+          fi
+
+          echo "✅ Debug-артефактов не найдено"
+
+  security-check:
+    name: Security — Basic Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for common security issues
+        run: |
+          echo "Проверяем на базовые уязвимости..."
+          FOUND=0
+
+          if grep -n "eval(" script.js; then
+            echo "❌ Найден eval() — потенциальная уязвимость"
+            FOUND=1
+          fi
+
+          if grep -n "innerHTML\s*=" script.js | grep -v "escapeHtml\|sanitize"; then
+            echo "⚠️  Прямая запись innerHTML без санитизации (проверьте вручную)"
+          fi
+
+          if grep -n "document\.write(" script.js; then
+            echo "❌ Найден document.write() — небезопасно"
+            FOUND=1
+          fi
+
+          if [ $FOUND -eq 1 ]; then
+            exit 1
+          fi
+
+          echo "✅ Критических проблем безопасности не найдено"
