@@ -1,5 +1,6 @@
 // ============================================================
-// YouTube Clone — script.js (полностью исправленная версия)
+// YouTube Clone — script.js (ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ВЕРСИЯ)
+// Все баги исправлены: просмотры, лайки, тема, поиск, автор, плеер, уведомления, удаление
 // ============================================================
 
 // ===== БАЗОВЫЕ ВИДЕО =====
@@ -72,7 +73,8 @@ const STORAGE_KEYS = {
     likesPrefix: 'ytclone_likes_',
     viewsPrefix: 'ytclone_views_',
     theme: 'ytclone_theme',
-    viewedVideos: 'ytclone_viewed_videos' // НОВО: для отслеживания просмотренных видео
+    viewedVideos: 'ytclone_viewed_videos',
+    authorPrefix: 'ytclone_author_'
 };
 
 // ===== ФУНКЦИИ РАБОТЫ С ХРАНИЛИЩЕМ =====
@@ -107,7 +109,14 @@ function setViews(videoId, count) {
     localStorage.setItem(STORAGE_KEYS.viewsPrefix + videoId, String(count));
 }
 
-// НОВО: проверка, смотрел ли пользователь видео
+function getVideoAuthor(videoId) {
+    return localStorage.getItem(STORAGE_KEYS.authorPrefix + videoId) || null;
+}
+
+function setVideoAuthor(videoId, author) {
+    localStorage.setItem(STORAGE_KEYS.authorPrefix + videoId, author);
+}
+
 function hasUserViewed(videoId) {
     const viewed = JSON.parse(localStorage.getItem(STORAGE_KEYS.viewedVideos) || '[]');
     return viewed.includes(videoId);
@@ -121,19 +130,21 @@ function markAsViewed(videoId) {
     }
 }
 
-// ===== ИНИЦИАЛИЗАЦИЯ ВИДЕО =====
-// Загружаем сохранённые просмотры для стандартных видео
-function initializeViews() {
-    defaultVideos.forEach(video => {
-        if (!localStorage.getItem(STORAGE_KEYS.viewsPrefix + video.id)) {
-            // Если просмотров нет в localStorage, сохраняем начальные
-            setViews(video.id, video.views);
-        }
-    });
-}
-initializeViews();
+// ===== ИНИЦИАЛИЗАЦИЯ =====
+// Сохраняем авторов для стандартных видео
+defaultVideos.forEach(video => {
+    if (!localStorage.getItem(STORAGE_KEYS.authorPrefix + video.id)) {
+        setVideoAuthor(video.id, video.author);
+    }
+});
 
-// Все видео = базовые + добавленные пользователем
+// Сохраняем просмотры для стандартных видео
+defaultVideos.forEach(video => {
+    if (!localStorage.getItem(STORAGE_KEYS.viewsPrefix + video.id)) {
+        setViews(video.id, video.views);
+    }
+});
+
 function getAllVideos() {
     return [...defaultVideos, ...loadCustomVideos()];
 }
@@ -169,129 +180,7 @@ function escapeHtml(str) {
 }
 
 function generateId() {
-    return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-}
-
-// ===== РЕНДЕР ГРИДА =====
-const videoGrid = document.getElementById('videoGrid');
-const emptyState = document.getElementById('emptyState');
-
-let activeCategory = 'all';
-let searchQuery = '';
-
-function getVideoWithStats(video) {
-    const likes = getLikes(video.id);
-    const views = getViews(video.id, video.views || 0);
-    return { ...video, likes, views };
-}
-
-function renderVideos() {
-    videos = getAllVideos(); // Обновляем список видео
-    
-    const filtered = videos.filter(v => {
-        const matchesCategory = activeCategory === 'all' || v.category === activeCategory;
-        const matchesSearch = v.title.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesCategory && matchesSearch;
-    });
-
-    videoGrid.innerHTML = '';
-    emptyState.style.display = filtered.length === 0 ? 'block' : 'none';
-
-    filtered.forEach(video => {
-        const videoData = getVideoWithStats(video);
-        const liked = localStorage.getItem(STORAGE_KEYS.likesPrefix + video.id + '_liked') === '1';
-
-        const card = document.createElement('div');
-        card.className = 'video-card';
-        card.dataset.id = video.id;
-
-        // НОВО: показываем, что видео просмотрено
-        const viewedBadge = hasUserViewed(video.id) ? ' <span style="color:#999;font-size:12px;">✓ просмотрено</span>' : '';
-
-        card.innerHTML = `
-            <div class="thumbnail" style="background:${video.color};">${video.emoji}</div>
-            <div class="video-info">
-                <h3>${escapeHtml(video.title)}${viewedBadge}</h3>
-                <p>${escapeHtml(video.author)} • ${formatViews(videoData.views)}</p>
-                <div class="video-actions">
-                    <button class="like-btn ${liked ? 'liked' : ''}" data-id="${video.id}">❤️ <span class="like-count">${videoData.likes}</span></button>
-                    <button class="views-btn" data-id="${video.id}">👁️ <span class="views-count">${videoData.views}</span></button>
-                    ${video.id.startsWith('custom_') ? `<button class="delete-btn" data-id="${video.id}">🗑️</button>` : ''}
-                </div>
-            </div>
-        `;
-
-        card.addEventListener('click', (e) => {
-            if (e.target.closest('.like-btn') || e.target.closest('.views-btn') || e.target.closest('.delete-btn')) return;
-            openPlayer(video);
-        });
-
-        videoGrid.appendChild(card);
-    });
-
-    attachCardButtonHandlers();
-}
-
-function attachCardButtonHandlers() {
-    // Обработчики для лайков
-    document.querySelectorAll('.like-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const id = btn.dataset.id;
-            const likedKey = STORAGE_KEYS.likesPrefix + id + '_liked';
-            const alreadyLiked = localStorage.getItem(likedKey) === '1';
-            let likes = getLikes(id);
-
-            if (alreadyLiked) {
-                likes = Math.max(0, likes - 1);
-                localStorage.removeItem(likedKey);
-                btn.classList.remove('liked');
-            } else {
-                likes += 1;
-                localStorage.setItem(likedKey, '1');
-                btn.classList.add('liked');
-            }
-            setLikes(id, likes);
-            btn.querySelector('.like-count').textContent = likes;
-            
-            if (currentVideo && currentVideo.id === id) {
-                modalLikeBtn.querySelector('.like-count').textContent = likes;
-                modalLikeBtn.classList.toggle('liked', localStorage.getItem(likedKey) === '1');
-            }
-        });
-    });
-
-    // Обработчики для просмотров (просто показываем)
-    document.querySelectorAll('.views-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => e.stopPropagation());
-    });
-
-    // НОВО: обработчики для удаления
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const id = btn.dataset.id;
-            if (confirm('Удалить это видео?')) {
-                deleteVideo(id);
-            }
-        });
-    });
-}
-
-// ===== УДАЛЕНИЕ ВИДЕО =====
-function deleteVideo(videoId) {
-    let custom = loadCustomVideos();
-    custom = custom.filter(v => v.id !== videoId);
-    saveCustomVideos(custom);
-    
-    // Очищаем данные из localStorage
-    localStorage.removeItem(STORAGE_KEYS.likesPrefix + videoId);
-    localStorage.removeItem(STORAGE_KEYS.viewsPrefix + videoId);
-    localStorage.removeItem(STORAGE_KEYS.likesPrefix + videoId + '_liked');
-    
-    videos = getAllVideos();
-    renderVideos();
-    showNotification('🗑️ Видео удалено');
+    return 'custom_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
 }
 
 // ===== УВЕДОМЛЕНИЯ =====
@@ -315,6 +204,7 @@ function showNotification(message, type = 'success') {
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         animation: slideIn 0.3s ease-out;
         max-width: 300px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     `;
     
     document.body.appendChild(notification);
@@ -326,24 +216,155 @@ function showNotification(message, type = 'success') {
     }, 3000);
 }
 
-// Добавляем CSS анимацию для уведомлений
-const notificationStyle = document.createElement('style');
-notificationStyle.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-`;
-document.head.appendChild(notificationStyle);
+// Добавляем CSS для уведомлений
+if (!document.querySelector('#notification-style')) {
+    const style = document.createElement('style');
+    style.id = 'notification-style';
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// ===== РЕНДЕР ГРИДА =====
+const videoGrid = document.getElementById('videoGrid');
+const emptyState = document.getElementById('emptyState');
+
+let activeCategory = 'all';
+let searchQuery = '';
+
+function getVideoWithStats(video) {
+    const likes = getLikes(video.id);
+    const views = getViews(video.id, video.views || 0);
+    const author = getVideoAuthor(video.id) || video.author || 'Аноним';
+    return { ...video, likes, views, author };
+}
+
+function renderVideos() {
+    videos = getAllVideos();
+    
+    const filtered = videos.filter(v => {
+        const matchesCategory = activeCategory === 'all' || v.category === activeCategory;
+        const matchesSearch = v.title.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesCategory && matchesSearch;
+    });
+
+    videoGrid.innerHTML = '';
+    emptyState.style.display = filtered.length === 0 ? 'block' : 'none';
+
+    filtered.forEach(video => {
+        const videoData = getVideoWithStats(video);
+        const liked = localStorage.getItem(STORAGE_KEYS.likesPrefix + video.id + '_liked') === '1';
+        const isViewed = hasUserViewed(video.id);
+
+        const card = document.createElement('div');
+        card.className = 'video-card';
+        card.dataset.id = video.id;
+
+        card.innerHTML = `
+            <div class="thumbnail" style="background:${video.color};">${video.emoji}</div>
+            <div class="video-info">
+                <h3>${escapeHtml(video.title)}${isViewed ? ' <span style="color:#999;font-size:12px;">✓ просмотрено</span>' : ''}</h3>
+                <p>${escapeHtml(videoData.author)} • ${formatViews(videoData.views)}</p>
+                <div class="video-actions">
+                    <button class="like-btn ${liked ? 'liked' : ''}" data-id="${video.id}">❤️ <span class="like-count">${videoData.likes}</span></button>
+                    <button class="views-btn" data-id="${video.id}">👁️ <span class="views-count">${videoData.views}</span></button>
+                    ${video.id.startsWith('custom_') ? `<button class="delete-btn" data-id="${video.id}">🗑️</button>` : ''}
+                </div>
+            </div>
+        `;
+
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('.like-btn') || e.target.closest('.views-btn') || e.target.closest('.delete-btn')) return;
+            openPlayer(video);
+        });
+
+        videoGrid.appendChild(card);
+    });
+
+    attachCardButtonHandlers();
+}
+
+function attachCardButtonHandlers() {
+    document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.removeEventListener('click', btn._listener);
+        btn._listener = (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const likedKey = STORAGE_KEYS.likesPrefix + id + '_liked';
+            const alreadyLiked = localStorage.getItem(likedKey) === '1';
+            let likes = getLikes(id);
+
+            if (alreadyLiked) {
+                likes = Math.max(0, likes - 1);
+                localStorage.removeItem(likedKey);
+                btn.classList.remove('liked');
+            } else {
+                likes += 1;
+                localStorage.setItem(likedKey, '1');
+                btn.classList.add('liked');
+            }
+            setLikes(id, likes);
+            btn.querySelector('.like-count').textContent = likes;
+            
+            if (currentVideo && currentVideo.id === id) {
+                modalLikeBtn.querySelector('.like-count').textContent = likes;
+                modalLikeBtn.classList.toggle('liked', localStorage.getItem(likedKey) === '1');
+            }
+        };
+        btn.addEventListener('click', btn._listener);
+    });
+
+    document.querySelectorAll('.views-btn').forEach(btn => {
+        btn.removeEventListener('click', btn._listener);
+        btn._listener = (e) => e.stopPropagation();
+        btn.addEventListener('click', btn._listener);
+    });
+
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.removeEventListener('click', btn._listener);
+        btn._listener = (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            if (confirm('Удалить это видео?')) {
+                deleteVideo(id);
+            }
+        };
+        btn.addEventListener('click', btn._listener);
+    });
+}
+
+// ===== УДАЛЕНИЕ ВИДЕО =====
+function deleteVideo(videoId) {
+    let custom = loadCustomVideos();
+    custom = custom.filter(v => v.id !== videoId);
+    saveCustomVideos(custom);
+    
+    localStorage.removeItem(STORAGE_KEYS.likesPrefix + videoId);
+    localStorage.removeItem(STORAGE_KEYS.viewsPrefix + videoId);
+    localStorage.removeItem(STORAGE_KEYS.likesPrefix + videoId + '_liked');
+    localStorage.removeItem(STORAGE_KEYS.authorPrefix + videoId);
+    
+    videos = getAllVideos();
+    renderVideos();
+    showNotification('🗑️ Видео удалено');
+}
 
 // ===== КАТЕГОРИИ =====
 document.querySelectorAll('.category-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
+    chip.removeEventListener('click', chip._listener);
+    chip._listener = () => {
         document.querySelectorAll('.category-chip').forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
         activeCategory = chip.dataset.category;
+        searchInput.value = '';
+        searchQuery = '';
         renderVideos();
-    });
+    };
+    chip.addEventListener('click', chip._listener);
 });
 
 // ===== ПОИСК =====
@@ -355,22 +376,36 @@ function runSearch() {
     renderVideos();
 }
 
-searchBtn.addEventListener('click', runSearch);
-searchInput.addEventListener('input', runSearch);
+searchBtn.removeEventListener('click', searchBtn._listener);
+searchBtn._listener = runSearch;
+searchBtn.addEventListener('click', searchBtn._listener);
+
+searchInput.removeEventListener('input', searchInput._listener);
+searchInput._listener = runSearch;
+searchInput.addEventListener('input', searchInput._listener);
 
 // ===== ТЁМНАЯ ТЕМА =====
 const themeBtn = document.getElementById('themeBtn');
+let themeTimeout = null;
 
 function applyTheme(isDark) {
     document.body.classList.toggle('dark-theme', isDark);
     themeBtn.textContent = isDark ? '☀️ Светлая тема' : '🌙 Тёмная тема';
 }
 
-themeBtn.addEventListener('click', () => {
+themeBtn.removeEventListener('click', themeBtn._listener);
+themeBtn._listener = () => {
+    if (themeTimeout) return;
+    
     const isDark = !document.body.classList.contains('dark-theme');
     applyTheme(isDark);
     localStorage.setItem(STORAGE_KEYS.theme, isDark ? 'dark' : 'light');
-});
+    
+    themeTimeout = setTimeout(() => {
+        themeTimeout = null;
+    }, 300);
+};
+themeBtn.addEventListener('click', themeBtn._listener);
 
 (function initTheme() {
     const saved = localStorage.getItem(STORAGE_KEYS.theme);
@@ -393,11 +428,17 @@ const modalViewsBtn = document.getElementById('modalViewsBtn');
 let currentVideo = null;
 
 function openPlayer(video) {
+    if (!video || !video.id) {
+        console.error('Ошибка: видео не найдено');
+        showNotification('⚠️ Ошибка загрузки видео', 'error');
+        return;
+    }
+    
     currentVideo = video;
-    videoTitle.textContent = video.title;
-    videoMeta.textContent = video.author;
+    videoTitle.textContent = video.title || 'Без названия';
+    videoMeta.textContent = video.author || 'Неизвестный автор';
 
-    if (video.youtubeId) {
+    if (video.youtubeId && video.youtubeId.length === 11) {
         videoFrame.innerHTML = `
             <iframe
                 width="100%" height="100%"
@@ -409,14 +450,13 @@ function openPlayer(video) {
             </iframe>`;
     } else {
         videoFrame.innerHTML = `
-            <div class="placeholder-frame" style="background:${video.color}22;">
-                <div style="font-size:64px;">${video.emoji}</div>
-                <p>Демо-видео без ссылки на YouTube.</p>
+            <div class="placeholder-frame" style="background:${video.color || '#333'}22;">
+                <div style="font-size:64px;">${video.emoji || '🎬'}</div>
+                <p>${video.youtubeId ? '⚠️ Неверный ID видео' : 'Демо-видео без ссылки на YouTube'}</p>
                 <p class="hint">Добавьте своё видео с реальной ссылкой через кнопку «➕ Добавить видео».</p>
             </div>`;
     }
 
-    // НОВО: увеличиваем просмотры только если видео ещё не смотрели
     if (!hasUserViewed(video.id)) {
         const views = getViews(video.id, video.views || 0) + 1;
         setViews(video.id, views);
@@ -435,7 +475,8 @@ function openPlayer(video) {
     renderVideos();
 }
 
-modalLikeBtn.addEventListener('click', () => {
+modalLikeBtn.removeEventListener('click', modalLikeBtn._listener);
+modalLikeBtn._listener = () => {
     if (!currentVideo) return;
     const id = currentVideo.id;
     const likedKey = STORAGE_KEYS.likesPrefix + id + '_liked';
@@ -454,7 +495,8 @@ modalLikeBtn.addEventListener('click', () => {
     setLikes(id, likes);
     modalLikeBtn.querySelector('.like-count').textContent = likes;
     renderVideos();
-});
+};
+modalLikeBtn.addEventListener('click', modalLikeBtn._listener);
 
 function closePlayer() {
     videoPlayer.style.display = 'none';
@@ -464,10 +506,15 @@ function closePlayer() {
     currentVideo = null;
 }
 
-closePlayerBtn.addEventListener('click', closePlayer);
-videoPlayer.addEventListener('click', (e) => {
+closePlayerBtn.removeEventListener('click', closePlayerBtn._listener);
+closePlayerBtn._listener = closePlayer;
+closePlayerBtn.addEventListener('click', closePlayerBtn._listener);
+
+videoPlayer.removeEventListener('click', videoPlayer._listener);
+videoPlayer._listener = (e) => {
     if (e.target === videoPlayer) closePlayer();
-});
+};
+videoPlayer.addEventListener('click', videoPlayer._listener);
 
 // ===== ДОБАВЛЕНИЕ СВОЕГО ВИДЕО =====
 const addVideoBtn = document.getElementById('addVideoBtn');
@@ -490,15 +537,22 @@ const colorByCategory = {
     other: '#636e72'
 };
 
-addVideoBtn.addEventListener('click', () => {
+addVideoBtn.removeEventListener('click', addVideoBtn._listener);
+addVideoBtn._listener = () => {
     addVideoModal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-});
+};
+addVideoBtn.addEventListener('click', addVideoBtn._listener);
 
-closeAddVideoBtn.addEventListener('click', closeAddVideoModal);
-addVideoModal.addEventListener('click', (e) => {
+closeAddVideoBtn.removeEventListener('click', closeAddVideoBtn._listener);
+closeAddVideoBtn._listener = closeAddVideoModal;
+closeAddVideoBtn.addEventListener('click', closeAddVideoBtn._listener);
+
+addVideoModal.removeEventListener('click', addVideoModal._listener);
+addVideoModal._listener = (e) => {
     if (e.target === addVideoModal) closeAddVideoModal();
-});
+};
+addVideoModal.addEventListener('click', addVideoModal._listener);
 
 function closeAddVideoModal() {
     addVideoModal.style.display = 'none';
@@ -507,7 +561,8 @@ function closeAddVideoModal() {
     document.getElementById('newTitle').style.borderColor = '';
 }
 
-addVideoForm.addEventListener('submit', (e) => {
+addVideoForm.removeEventListener('submit', addVideoForm._listener);
+addVideoForm._listener = (e) => {
     e.preventDefault();
 
     const title = document.getElementById('newTitle').value.trim();
@@ -515,7 +570,6 @@ addVideoForm.addEventListener('submit', (e) => {
     const category = document.getElementById('newCategory').value;
     const author = document.getElementById('newAuthor').value.trim() || 'Аноним';
 
-    // Валидация
     if (!title) {
         const titleInput = document.getElementById('newTitle');
         titleInput.style.borderColor = '#ff0000';
@@ -529,7 +583,6 @@ addVideoForm.addEventListener('submit', (e) => {
         return;
     }
 
-    // НОВО: проверка на дубликаты
     const allVideos = getAllVideos();
     if (allVideos.some(v => v.title.toLowerCase() === title.toLowerCase())) {
         showNotification('⚠️ Видео с таким названием уже есть', 'error');
@@ -538,7 +591,6 @@ addVideoForm.addEventListener('submit', (e) => {
 
     const youtubeId = extractYouTubeId(url);
     
-    // НОВО: если ссылка невалидная — показываем предупреждение
     if (url && !youtubeId) {
         if (!confirm('⚠️ Ссылка на YouTube не распознана. Видео будет добавлено без плеера. Продолжить?')) {
             return;
@@ -559,6 +611,8 @@ addVideoForm.addEventListener('submit', (e) => {
     const custom = loadCustomVideos();
     custom.unshift(newVideo);
     saveCustomVideos(custom);
+    
+    setVideoAuthor(newVideo.id, author);
 
     videos = getAllVideos();
     closeAddVideoModal();
@@ -568,16 +622,19 @@ addVideoForm.addEventListener('submit', (e) => {
     renderVideos();
     
     showNotification('✅ Видео "' + title + '" добавлено!');
-});
+};
+addVideoForm.addEventListener('submit', addVideoForm._listener);
 
 // ===== ЗАКРЫТИЕ ПО ESC =====
-document.addEventListener('keydown', (e) => {
+document.removeEventListener('keydown', document._listener);
+document._listener = (e) => {
     if (e.key === 'Escape') {
         if (videoPlayer.style.display === 'flex') closePlayer();
         if (addVideoModal.style.display === 'flex') closeAddVideoModal();
     }
-});
+};
+document.addEventListener('keydown', document._listener);
 
 // ===== СТАРТ =====
 renderVideos();
-console.log('🎬 YouTube Clone успешно загружен! (исправленная версия)');
+console.log('🎬 YouTube Clone успешно загружен! (полностью исправленная версия)');
