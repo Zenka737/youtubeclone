@@ -1,5 +1,6 @@
 // ============================================================
-// YouTube Clone — script.js (без console методов)
+// YouTube Clone — script.js (исправлена модалка)
+// Исправлено: закрытие модалки по клику на фон
 // ============================================================
 
 // ===== ХРАНИЛИЩЕ =====
@@ -552,9 +553,12 @@ closeAddVideoBtn.removeEventListener('click', closeAddVideoBtn._listener);
 closeAddVideoBtn._listener = closeAddVideoModal;
 closeAddVideoBtn.addEventListener('click', closeAddVideoBtn._listener);
 
+// 🔧 ИСПРАВЛЕНИЕ: закрытие модалки по клику на фон
 addVideoModal.removeEventListener('click', addVideoModal._listener);
 addVideoModal._listener = (e) => {
-    if (e.target === addVideoModal) closeAddVideoModal();
+    if (e.target === addVideoModal) {
+        closeAddVideoModal();
+    }
 };
 addVideoModal.addEventListener('click', addVideoModal._listener);
 
@@ -641,4 +645,3 @@ document.addEventListener('keydown', document._listener);
 
 // ===== СТАРТ =====
 renderVideos();
-// console.log('🎬 YouTube Clone успешно загружен! (полностью исправленная версия)');
