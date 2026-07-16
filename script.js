@@ -1,5 +1,5 @@
 // ============================================================
-// YouTube Clone — script.js (исправленная версия)
+// YouTube Clone — script.js (полностью исправленная версия)
 // ============================================================
 
 // ===== БАЗОВЫЕ ВИДЕО =====
@@ -71,9 +71,11 @@ const STORAGE_KEYS = {
     customVideos: 'ytclone_custom_videos',
     likesPrefix: 'ytclone_likes_',
     viewsPrefix: 'ytclone_views_',
-    theme: 'ytclone_theme'
+    theme: 'ytclone_theme',
+    viewedVideos: 'ytclone_viewed_videos' // НОВО: для отслеживания просмотренных видео
 };
 
+// ===== ФУНКЦИИ РАБОТЫ С ХРАНИЛИЩЕМ =====
 function loadCustomVideos() {
     try {
         const raw = localStorage.getItem(STORAGE_KEYS.customVideos);
@@ -105,8 +107,38 @@ function setViews(videoId, count) {
     localStorage.setItem(STORAGE_KEYS.viewsPrefix + videoId, String(count));
 }
 
+// НОВО: проверка, смотрел ли пользователь видео
+function hasUserViewed(videoId) {
+    const viewed = JSON.parse(localStorage.getItem(STORAGE_KEYS.viewedVideos) || '[]');
+    return viewed.includes(videoId);
+}
+
+function markAsViewed(videoId) {
+    const viewed = JSON.parse(localStorage.getItem(STORAGE_KEYS.viewedVideos) || '[]');
+    if (!viewed.includes(videoId)) {
+        viewed.push(videoId);
+        localStorage.setItem(STORAGE_KEYS.viewedVideos, JSON.stringify(viewed));
+    }
+}
+
+// ===== ИНИЦИАЛИЗАЦИЯ ВИДЕО =====
+// Загружаем сохранённые просмотры для стандартных видео
+function initializeViews() {
+    defaultVideos.forEach(video => {
+        if (!localStorage.getItem(STORAGE_KEYS.viewsPrefix + video.id)) {
+            // Если просмотров нет в localStorage, сохраняем начальные
+            setViews(video.id, video.views);
+        }
+    });
+}
+initializeViews();
+
 // Все видео = базовые + добавленные пользователем
-let videos = [...defaultVideos, ...loadCustomVideos()];
+function getAllVideos() {
+    return [...defaultVideos, ...loadCustomVideos()];
+}
+
+let videos = getAllVideos();
 
 // ===== УТИЛИТЫ =====
 function extractYouTubeId(url) {
@@ -136,6 +168,10 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+function generateId() {
+    return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+}
+
 // ===== РЕНДЕР ГРИДА =====
 const videoGrid = document.getElementById('videoGrid');
 const emptyState = document.getElementById('emptyState');
@@ -143,14 +179,15 @@ const emptyState = document.getElementById('emptyState');
 let activeCategory = 'all';
 let searchQuery = '';
 
-// Функция для получения актуальных данных видео (синхронизация)
 function getVideoWithStats(video) {
     const likes = getLikes(video.id);
-    const views = getViews(video.id, video.views);
+    const views = getViews(video.id, video.views || 0);
     return { ...video, likes, views };
 }
 
 function renderVideos() {
+    videos = getAllVideos(); // Обновляем список видео
+    
     const filtered = videos.filter(v => {
         const matchesCategory = activeCategory === 'all' || v.category === activeCategory;
         const matchesSearch = v.title.toLowerCase().includes(searchQuery.toLowerCase());
@@ -168,20 +205,24 @@ function renderVideos() {
         card.className = 'video-card';
         card.dataset.id = video.id;
 
+        // НОВО: показываем, что видео просмотрено
+        const viewedBadge = hasUserViewed(video.id) ? ' <span style="color:#999;font-size:12px;">✓ просмотрено</span>' : '';
+
         card.innerHTML = `
             <div class="thumbnail" style="background:${video.color};">${video.emoji}</div>
             <div class="video-info">
-                <h3>${escapeHtml(video.title)}</h3>
+                <h3>${escapeHtml(video.title)}${viewedBadge}</h3>
                 <p>${escapeHtml(video.author)} • ${formatViews(videoData.views)}</p>
                 <div class="video-actions">
                     <button class="like-btn ${liked ? 'liked' : ''}" data-id="${video.id}">❤️ <span class="like-count">${videoData.likes}</span></button>
                     <button class="views-btn" data-id="${video.id}">👁️ <span class="views-count">${videoData.views}</span></button>
+                    ${video.id.startsWith('custom_') ? `<button class="delete-btn" data-id="${video.id}">🗑️</button>` : ''}
                 </div>
             </div>
         `;
 
         card.addEventListener('click', (e) => {
-            if (e.target.closest('.like-btn') || e.target.closest('.views-btn')) return;
+            if (e.target.closest('.like-btn') || e.target.closest('.views-btn') || e.target.closest('.delete-btn')) return;
             openPlayer(video);
         });
 
@@ -192,6 +233,7 @@ function renderVideos() {
 }
 
 function attachCardButtonHandlers() {
+    // Обработчики для лайков
     document.querySelectorAll('.like-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -212,7 +254,6 @@ function attachCardButtonHandlers() {
             setLikes(id, likes);
             btn.querySelector('.like-count').textContent = likes;
             
-            // Обновляем лайк в модалке, если она открыта
             if (currentVideo && currentVideo.id === id) {
                 modalLikeBtn.querySelector('.like-count').textContent = likes;
                 modalLikeBtn.classList.toggle('liked', localStorage.getItem(likedKey) === '1');
@@ -220,10 +261,80 @@ function attachCardButtonHandlers() {
         });
     });
 
+    // Обработчики для просмотров (просто показываем)
     document.querySelectorAll('.views-btn').forEach(btn => {
         btn.addEventListener('click', (e) => e.stopPropagation());
     });
+
+    // НОВО: обработчики для удаления
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            if (confirm('Удалить это видео?')) {
+                deleteVideo(id);
+            }
+        });
+    });
 }
+
+// ===== УДАЛЕНИЕ ВИДЕО =====
+function deleteVideo(videoId) {
+    let custom = loadCustomVideos();
+    custom = custom.filter(v => v.id !== videoId);
+    saveCustomVideos(custom);
+    
+    // Очищаем данные из localStorage
+    localStorage.removeItem(STORAGE_KEYS.likesPrefix + videoId);
+    localStorage.removeItem(STORAGE_KEYS.viewsPrefix + videoId);
+    localStorage.removeItem(STORAGE_KEYS.likesPrefix + videoId + '_liked');
+    
+    videos = getAllVideos();
+    renderVideos();
+    showNotification('🗑️ Видео удалено');
+}
+
+// ===== УВЕДОМЛЕНИЯ =====
+function showNotification(message, type = 'success') {
+    const oldNotification = document.querySelector('.notification');
+    if (oldNotification) oldNotification.remove();
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 24px;
+        background: ${type === 'success' ? '#4CAF50' : '#ff4444'};
+        color: white;
+        border-radius: 8px;
+        z-index: 9999;
+        font-size: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease-out;
+        max-width: 300px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.3s';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// Добавляем CSS анимацию для уведомлений
+const notificationStyle = document.createElement('style');
+notificationStyle.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+`;
+document.head.appendChild(notificationStyle);
 
 // ===== КАТЕГОРИИ =====
 document.querySelectorAll('.category-chip').forEach(chip => {
@@ -305,20 +416,23 @@ function openPlayer(video) {
             </div>`;
     }
 
-    // Увеличиваем просмотры при открытии
-    const views = getViews(video.id, video.views) + 1;
-    setViews(video.id, views);
+    // НОВО: увеличиваем просмотры только если видео ещё не смотрели
+    if (!hasUserViewed(video.id)) {
+        const views = getViews(video.id, video.views || 0) + 1;
+        setViews(video.id, views);
+        markAsViewed(video.id);
+    }
 
     const likes = getLikes(video.id);
     const liked = localStorage.getItem(STORAGE_KEYS.likesPrefix + video.id + '_liked') === '1';
 
     modalLikeBtn.querySelector('.like-count').textContent = likes;
     modalLikeBtn.classList.toggle('liked', liked);
-    modalViewsBtn.querySelector('.views-count').textContent = views;
+    modalViewsBtn.querySelector('.views-count').textContent = getViews(video.id, video.views || 0);
 
     videoPlayer.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    renderVideos(); // обновить все карточки
+    renderVideos();
 }
 
 modalLikeBtn.addEventListener('click', () => {
@@ -339,14 +453,13 @@ modalLikeBtn.addEventListener('click', () => {
     }
     setLikes(id, likes);
     modalLikeBtn.querySelector('.like-count').textContent = likes;
-    renderVideos(); // синхронизация с карточками
+    renderVideos();
 });
 
 function closePlayer() {
     videoPlayer.style.display = 'none';
     document.body.style.overflow = 'auto';
-    videoFrame.innerHTML = ''; // остановить видео
-    // Обновляем просмотры в карточках после закрытия
+    videoFrame.innerHTML = '';
     renderVideos();
     currentVideo = null;
 }
@@ -391,9 +504,7 @@ function closeAddVideoModal() {
     addVideoModal.style.display = 'none';
     document.body.style.overflow = 'auto';
     addVideoForm.reset();
-    // Сбрасываем ошибки валидации
-    const titleInput = document.getElementById('newTitle');
-    titleInput.style.borderColor = '';
+    document.getElementById('newTitle').style.borderColor = '';
 }
 
 addVideoForm.addEventListener('submit', (e) => {
@@ -404,23 +515,38 @@ addVideoForm.addEventListener('submit', (e) => {
     const category = document.getElementById('newCategory').value;
     const author = document.getElementById('newAuthor').value.trim() || 'Аноним';
 
-    // Усиленная валидация
+    // Валидация
     if (!title) {
         const titleInput = document.getElementById('newTitle');
         titleInput.style.borderColor = '#ff0000';
         titleInput.focus();
-        alert('Пожалуйста, введите название видео');
+        showNotification('⚠️ Введите название видео', 'error');
         return;
     }
 
     if (title.length < 2) {
-        alert('Название должно содержать минимум 2 символа');
+        showNotification('⚠️ Название должно быть минимум 2 символа', 'error');
+        return;
+    }
+
+    // НОВО: проверка на дубликаты
+    const allVideos = getAllVideos();
+    if (allVideos.some(v => v.title.toLowerCase() === title.toLowerCase())) {
+        showNotification('⚠️ Видео с таким названием уже есть', 'error');
         return;
     }
 
     const youtubeId = extractYouTubeId(url);
+    
+    // НОВО: если ссылка невалидная — показываем предупреждение
+    if (url && !youtubeId) {
+        if (!confirm('⚠️ Ссылка на YouTube не распознана. Видео будет добавлено без плеера. Продолжить?')) {
+            return;
+        }
+    }
+
     const newVideo = {
-        id: 'custom_' + Date.now(),
+        id: generateId(),
         title,
         author,
         category,
@@ -434,15 +560,14 @@ addVideoForm.addEventListener('submit', (e) => {
     custom.unshift(newVideo);
     saveCustomVideos(custom);
 
-    videos = [...defaultVideos, ...custom];
+    videos = getAllVideos();
     closeAddVideoModal();
     activeCategory = 'all';
     document.querySelectorAll('.category-chip').forEach(c => c.classList.remove('active'));
     document.querySelector('.category-chip[data-category="all"]').classList.add('active');
     renderVideos();
     
-    // Уведомление об успехе
-    console.log('✅ Видео добавлено:', newVideo.title);
+    showNotification('✅ Видео "' + title + '" добавлено!');
 });
 
 // ===== ЗАКРЫТИЕ ПО ESC =====
@@ -455,4 +580,4 @@ document.addEventListener('keydown', (e) => {
 
 // ===== СТАРТ =====
 renderVideos();
-console.log('🎬 YouTube Clone успешно загружен!');
+console.log('🎬 YouTube Clone успешно загружен! (исправленная версия)');
