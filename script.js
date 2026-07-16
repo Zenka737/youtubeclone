@@ -370,8 +370,12 @@ function deleteVideo(id) {
 var playerOverlay = document.getElementById('playerOverlay');
 
 function openPlayer(video) {
+    if (!video || !video.id) {
+        showToast('⚠️ Ошибка загрузки видео');
+        return;
+    }
     currentVideo = video;
-    var views = getViews(video.id, video.views);
+    var views = getViews(video.id, video.views || 0);
     if (!hasViewed(video.id)) {
         views += 1;
         setViews(video.id, views);
@@ -405,15 +409,15 @@ function openPlayer(video) {
     document.getElementById('modalDeleteBtn').style.display = isOwn ? '' : 'none';
 
     var frame = document.getElementById('videoFrame');
-    if (video.youtubeId) {
+    if (video.youtubeId && video.youtubeId.length === 11) {
         frame.innerHTML = '<iframe src="https://www.youtube.com/embed/' + video.youtubeId + '?autoplay=1"' +
-            ' title="' + escapeHtml(video.title) + '" frameborder="0"' +
+            ' title="' + escapeHtml(video.title || '') + '" frameborder="0"' +
             ' allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"' +
             ' allowfullscreen></iframe>';
     } else {
-        frame.innerHTML = '<div class="placeholder-frame" style="background:' + video.color + '22;">' +
-            '<div class="ph-emoji">' + video.emoji + '</div>' +
-            '<p>Демо-видео. Добавьте YouTube-ссылку при загрузке.</p>' +
+        frame.innerHTML = '<div class="placeholder-frame" style="background:' + (video.color || '#333') + '22;">' +
+            '<div class="ph-emoji">' + (video.emoji || '🎬') + '</div>' +
+            '<p>' + (video.youtubeId ? '⚠️ Неверный ID видео' : 'Демо-видео. Добавьте YouTube-ссылку при загрузке.') + '</p>' +
             '</div>';
     }
 
@@ -705,10 +709,13 @@ document.getElementById('searchBtn').addEventListener('click', function() {
     document.getElementById('themeBtn').textContent = isDark ? '☀️' : '🌙';
 })();
 
+var themeDebounce = null;
 document.getElementById('themeBtn').addEventListener('click', function() {
+    if (themeDebounce) return;
     var isDark = document.body.classList.toggle('dark');
     store(KEYS.theme, isDark);
     document.getElementById('themeBtn').textContent = isDark ? '☀️' : '🌙';
+    themeDebounce = setTimeout(function() { themeDebounce = null; }, 300);
 });
 
 // ===== ESC =====
