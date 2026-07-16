@@ -22,7 +22,7 @@ jobs:
         run: npm install --no-save eslint@9
 
       - name: Run ESLint
-        run: npx eslint script.js --no-eslintrc -c eslint.config.mjs
+        run: npx eslint script.js
 
   lint-html:
     name: HTML — HTMLHint
