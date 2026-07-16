@@ -362,6 +362,10 @@ function deleteVideo(id) {
     localStorage.removeItem(KEYS.likes + id);
     localStorage.removeItem(KEYS.liked + id);
     localStorage.removeItem(KEYS.views + id);
+    var viewed = load(KEYS.viewed) || [];
+    store(KEYS.viewed, viewed.filter(function(vid) { return vid !== id; }));
+    var history = getHistory().filter(function(vid) { return vid.id !== id; });
+    store(KEYS.history, history);
     renderVideos();
     showToast('Видео удалено');
 }
