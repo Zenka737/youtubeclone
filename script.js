@@ -82,7 +82,6 @@ function loadCustomVideos() {
         const raw = localStorage.getItem(STORAGE_KEYS.customVideos);
         return raw ? JSON.parse(raw) : [];
     } catch (e) {
-        // console.warn('Не удалось прочитать сохранённые видео:', e);
         return [];
     }
 }
