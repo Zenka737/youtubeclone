@@ -112,6 +112,7 @@ const KEYS = {
     subs: 'ytc_subs',
     history: 'ytc_history',
     theme: 'ytc_theme',
+    viewed: 'ytc_viewed',
 };
 
 function store(key, val) {
@@ -132,6 +133,11 @@ function isLiked(id) { return load(KEYS.liked + id, false); }
 function setLiked(id, v) { store(KEYS.liked + id, v); }
 function getViews(id, fallback) { return load(KEYS.views + id, fallback); }
 function setViews(id, n) { store(KEYS.views + id, n); }
+function hasViewed(id) { return load(KEYS.viewed, []).indexOf(id) !== -1; }
+function markViewed(id) {
+    var v = load(KEYS.viewed, []);
+    if (v.indexOf(id) === -1) { v.push(id); store(KEYS.viewed, v); }
+}
 function getSubscriptions() { return load(KEYS.subs, []); }
 function isSubscribed(channel) { return getSubscriptions().includes(channel); }
 function toggleSubscription(channel) {
@@ -282,9 +288,12 @@ function renderVideos() {
         card.className = 'video-card';
         card.dataset.id = video.id;
 
+        var watched = hasViewed(video.id);
+
         card.innerHTML =
             '<div class="card-thumb" style="background:' + video.color + ';">' +
                 '<span>' + video.emoji + '</span>' +
+                (watched ? '<div class="card-watched">✓</div>' : '') +
                 '<div class="card-duration">▶ демо</div>' +
             '</div>' +
             '<div class="card-body">' +
@@ -350,6 +359,9 @@ function deleteVideo(id) {
     var custom = loadCustomVideos().filter(function(v) { return v.id !== id; });
     saveCustomVideos(custom);
     allVideos = DEFAULT_VIDEOS.concat(custom);
+    localStorage.removeItem(KEYS.likes + id);
+    localStorage.removeItem(KEYS.liked + id);
+    localStorage.removeItem(KEYS.views + id);
     renderVideos();
     showToast('Видео удалено');
 }
@@ -359,8 +371,12 @@ var playerOverlay = document.getElementById('playerOverlay');
 
 function openPlayer(video) {
     currentVideo = video;
-    var views = getViews(video.id, video.views) + 1;
-    setViews(video.id, views);
+    var views = getViews(video.id, video.views);
+    if (!hasViewed(video.id)) {
+        views += 1;
+        setViews(video.id, views);
+        markViewed(video.id);
+    }
     addToHistory(video.id);
 
     document.getElementById('playerTitle').textContent = video.title;
@@ -528,11 +544,25 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
         return;
     }
 
+    var titleLower = title.toLowerCase();
+    if (allVideos.some(function(v) { return v.title.toLowerCase() === titleLower; })) {
+        titleInput.classList.add('error');
+        titleInput.focus();
+        showToast('Видео с таким названием уже существует');
+        return;
+    }
+
     var url = document.getElementById('uploadUrl').value.trim();
     var category = document.getElementById('uploadCategory').value;
     var author = document.getElementById('uploadAuthor').value.trim() || 'Мой канал';
     var description = descInput.value.trim();
     var youtubeId = extractYouTubeId(url);
+
+    if (url && !youtubeId) {
+        if (!confirm('Ссылка на YouTube не распознана. Видео будет добавлено без плеера. Продолжить?')) {
+            return;
+        }
+    }
 
     var newVideo = {
         id: 'c_' + Date.now(),
